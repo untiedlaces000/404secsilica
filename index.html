@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>⚡ project silica 404sec (Enhanced)</title>
+  <title>⚡ project silica 404sec (Fixed Buttons)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0 }
@@ -12,13 +12,13 @@
       flex-direction: column; height: 100vh;
     }
     h2 { padding: 16px; text-align: center }
-    /* Full-screen overlays */
+    /* Fullscreen overlays */
     #avatarPicker, #lockScreen {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      position: fixed; inset: 0;
       background: rgba(0,0,0,0.95);
       display: none; flex-direction: column;
       align-items: center; justify-content: center;
-      z-index: 1000; color: #0f0;
+      z-index: 1000;
     }
     #avatarPicker.active, #lockScreen.active { display: flex }
     #avatarGrid {
@@ -32,56 +32,41 @@
     }
     #avatarGrid img:hover { transform: scale(1.1) }
     .avatar-option { margin: 8px 0 }
-    /* Layout sections */
-    .panel { padding: 12px 16px; }
-    .flex { display: flex; align-items: center; gap: 8px }
-    .flex-wrap { display: flex; flex-wrap: wrap; gap: 8px }
+    .panel { padding: 8px 16px }
+    .flex { display: flex; gap: 8px; align-items: center }
     input, button { 
       background: #111; color: #0f0;
-      border: 1px solid #0f0; padding: 8px;
-      font-size: 1em; font-family: monospace;
+      border: 1px solid #0f0; padding: 6px 10px;
+      font-family: monospace; font-size: 1em;
     }
-    input[readonly] { opacity: .8; cursor: text }
-    button { cursor: pointer; transition: opacity .2s }
     button:disabled { opacity: .4; cursor: not-allowed }
-    /* Quick connect buttons */
-    #quickConnect button { min-width: 80px }
-    /* Active peers list */
+    /* Active peers, chat, bottom */
     #connections .conn-item {
       padding: 4px 8px; margin: 4px 0;
       border: 1px solid #0f0; border-radius: 4px;
       display: flex; justify-content: space-between;
     }
-    /* Chat window */
     #chatbox {
       flex: 1; background: #111;
       margin: 0 16px; padding: 12px;
       overflow-y: auto; border: 1px solid #0f0;
     }
-    .message {
-      display: flex; align-items: flex-start;
-      margin-bottom: 8px;
-    }
-    .message .avatar-thumb {
+    .message { display: flex; margin-bottom: 8px; }
+    .avatar-thumb {
       width: 32px; height: 32px;
       border: 1px solid #0f0; border-radius: 4px;
       margin-right: 8px;
     }
-    .message .text { line-height: 1.3 }
-    .message .text .user { font-weight: bold }
+    .text { line-height: 1.3 }
+    .user { font-weight: bold }
     .system { font-style: italic; opacity: .6; margin: 4px 16px }
-    /* Bottom bar */
-    #bottom { 
-      padding: 12px 16px; background: #000;
-      display: flex; gap: 8px;
-    }
+    #bottom { padding: 8px 16px; display: flex; gap: 8px; }
   </style>
 </head>
 <body oncontextmenu="return false;">
 
   <!-- untiedlaces , 02 3 , bxr ,hd -->
 
-  <!-- Avatar Picker -->
   <div id="avatarPicker" class="active">
     <h3>🧙 Pick Your Avatar</h3>
     <div id="avatarGrid"></div>
@@ -94,7 +79,6 @@
     <small>powered by Dicebear or your own URL</small>
   </div>
 
-  <!-- Lock Screen -->
   <div id="lockScreen">
     <h3>🔐 Enter Password</h3>
     <form id="unlockForm" class="flex">
@@ -113,9 +97,9 @@
     <button id="copyIdBtn">Copy</button>
   </div>
 
-  <!-- Quick-Connect -->
-  <div id="quickConnect" class="panel flex-wrap">
-    <strong>Quick Connect:</strong>
+  <!-- Quick Connect -->
+  <div id="quickConnect" class="panel flex">
+    <strong>Quick:</strong>
   </div>
 
   <!-- Manual Connect -->
@@ -132,185 +116,175 @@
   <!-- Chat -->
   <div id="chatbox"></div>
 
-  <!-- Message Input -->
+  <!-- Bottom bar -->
   <div id="bottom">
     <input id="messageInput" placeholder="Type a message…" />
     <button id="sendBtn" disabled>Send</button>
   </div>
 
   <script>
-  (function(){
-    // CONFIG  
-    const PASSWORD = ':)00@';
-    const QUICK_IDS = ['peer-A','peer-B','peer-C','peer-D','peer-E'];
+    // ——————————————
+    // GLOBAL STATE & UTILS
+    // ——————————————
+    const PASSWORD    = ':)00@';
+    const QUICK_IDS   = ['peer-A','peer-B','peer-C','peer-D','peer-E'];
+    let avatarURL     = '';
+    const username    = prompt('Your name?')?.trim() || 'Anon';
+    const conns       = {};
+    const peer        = new Peer();
 
-    // DOM  
-    const avatarPicker = document.getElementById('avatarPicker');
-    const lockScreen    = document.getElementById('lockScreen');
-    const avatarGrid    = document.getElementById('avatarGrid');
-    const pwdInput      = document.getElementById('passwordInput');
-    const pwdMsg        = document.getElementById('passwordMsg');
-    const refreshBtn    = document.getElementById('refreshAvatars');
-    const blackBtn      = document.getElementById('blackAvatar');
-    const customURL     = document.getElementById('customURL');
-    const customOkBtn   = document.getElementById('customOk');
-    const unlockForm    = document.getElementById('unlockForm');
-
-    const myIdInput     = document.getElementById('myId');
-    const copyIdBtn     = document.getElementById('copyIdBtn');
-    const quickConnect  = document.getElementById('quickConnect');
-    const friendIdInput = document.getElementById('friendId');
-    const manualBtn     = document.getElementById('connectManualBtn');
-
-    const connectionsEl = document.getElementById('connections');
-    const chatbox       = document.getElementById('chatbox');
-    const msgInput      = document.getElementById('messageInput');
-    const sendBtn       = document.getElementById('sendBtn');
-
-    // STATE  
-    let avatarURL = '';
-    const username = prompt('Choose your username:')?.trim() || 'Anonymous';
-
-    // UTIL  
     function logSystem(text) {
-      const el = document.createElement('div');
-      el.className = 'system';
-      el.textContent = text;
-      chatbox.appendChild(el);
+      const div = document.createElement('div');
+      div.className = 'system';
+      div.textContent = text;
+      chatbox.appendChild(div);
       chatbox.scrollTop = chatbox.scrollHeight;
     }
 
-    function renderMessage({user,avatar,text}, isSelf) {
+    function renderMessage({user,avatar,text}, self) {
       const row = document.createElement('div');
       row.className = 'message';
       row.innerHTML = `
         <img class="avatar-thumb" src="${avatar}" />
         <div class="text">
-          <div class="user">${isSelf? 'You': user}</div>
+          <div class="user">${self?'You':user}</div>
           <div>${text}</div>
         </div>`;
       chatbox.appendChild(row);
       chatbox.scrollTop = chatbox.scrollHeight;
     }
 
-    // AVATAR PICKER  
-    const avatarStyles = ["fun-emoji","pixel-art","bottts","identicon","adventurer","croodles"];
-    function shuffleAvatars() {
+    // ——————————————
+    // AVATAR PICKER
+    // ——————————————
+    function refreshAvatars() {
       avatarGrid.innerHTML = '';
+      const styles = ["fun-emoji","pixel-art","bottts","identicon","adventurer","croodles"];
       for (let i=0; i<9; i++) {
-        const style = avatarStyles[Math.floor(Math.random()*avatarStyles.length)];
-        const seed  = username.replace(/\W/g,'').toLowerCase()+Math.random();
+        const style = styles[Math.floor(Math.random()*styles.length)];
+        const seed  = username.replace(/\W/g,'').toLowerCase() + Math.random();
         const img   = document.createElement('img');
         img.src     = `https://api.dicebear.com/7.x/${style}/svg?seed=${seed}`;
         img.onclick = () => selectAvatar(img.src);
         avatarGrid.appendChild(img);
       }
     }
+
     function selectAvatar(url) {
       avatarURL = url;
       avatarPicker.classList.remove('active');
       lockScreen.classList.add('active');
     }
-    function useCustom() {
-      const url = customURL.value.trim();
-      if (url) selectAvatar(url);
-    }
-    refreshBtn.onclick  = shuffleAvatars;
-    blackBtn.onclick    = () => selectAvatar('https://via.placeholder.com/40/000');
-    customOkBtn.onclick = useCustom;
-    shuffleAvatars();
 
-    // LOCK SCREEN  
+    function useBlackAvatar() {
+      selectAvatar('https://via.placeholder.com/40/000');
+    }
+
+    function useCustomURL() {
+      const val = customURL.value.trim();
+      if (val) selectAvatar(val);
+    }
+
+    // ——————————————
+    // LOCK SCREEN
+    // ——————————————
     unlockForm.addEventListener('submit', e => {
       e.preventDefault();
-      if (pwdInput.value === PASSWORD) {
+      if (passwordInput.value === PASSWORD) {
         lockScreen.classList.remove('active');
-        logSystem('Welcome, '+username);
+        logSystem(`Welcome, ${username}`);
       } else {
-        pwdMsg.textContent = '❌ Wrong password';
+        passwordMsg.textContent = '❌ Wrong password';
       }
     });
 
-    // PEERJS  
-    const peer = new Peer();
-    const conns = {};
-
-    peer.on('open', id => {
-      myIdInput.value = id;
-    });
-    peer.on('connection', conn => openConnection(conn));
-
-    // COPY ID  
-    copyIdBtn.onclick = () => {
-      navigator.clipboard.writeText(myIdInput.value)
-        .then(()=> logSystem('Copied your ID'));
-    };
-
-    // QUICK CONNECT  
-    QUICK_IDS.forEach(fid => {
-      const btn = document.createElement('button');
-      btn.textContent = fid;
-      btn.onclick     = () => connectTo(fid);
-      quickConnect.appendChild(btn);
-    });
-
-    // MANUAL CONNECT  
-    manualBtn.onclick = () => connectTo(friendIdInput.value.trim());
+    // ——————————————
+    // PEER CONNECTIONS
+    // ——————————————
+    peer.on('open', id => myId.value = id);
+    peer.on('connection', conn => openConn(conn));
 
     function connectTo(id) {
       if (!id || id === peer.id || conns[id]) return;
-      const conn = peer.connect(id);
-      conn.on('open', () => openConnection(conn));
+      const c = peer.connect(id);
+      c.on('open', () => openConn(c));
     }
 
-    function openConnection(conn) {
+    function openConn(conn) {
       conns[conn.peer] = conn;
       updateConnections();
-      logSystem('✅ Connected to ' + conn.peer);
+      logSystem(`✅ Connected to ${conn.peer}`);
       conn.on('data', data => renderMessage(data, false));
       conn.on('close', () => {
         delete conns[conn.peer];
         updateConnections();
-        logSystem('❌ Disconnected from ' + conn.peer);
+        logSystem(`❌ Disconnected ${conn.peer}`);
       });
     }
 
     function updateConnections() {
-      connectionsEl.innerHTML = '<strong>Active Peers:</strong>';
-      const peers = Object.keys(conns);
-      if (!peers.length) {
-        connectionsEl.innerHTML += ' <span class="system">none</span>';
-        sendBtn.disabled = true;
-        return;
-      }
-      peers.forEach(id => {
-        const item = document.createElement('div');
-        item.className = 'conn-item';
-        item.innerHTML = `
+      connections.innerHTML = '<strong>Active Peers:</strong>';
+      const ids = Object.keys(conns);
+      ids.forEach(id => {
+        const div = document.createElement('div');
+        div.className = 'conn-item';
+        div.innerHTML = `
           <span>${id}</span>
-          <button onclick="dropConnection('${id}')">✖</button>`;
-        connectionsEl.appendChild(item);
+          <button onclick="drop('${id}')">✖</button>`;
+        connections.appendChild(div);
       });
-      sendBtn.disabled = false;
+      sendBtn.disabled = ids.length === 0;
+      if (ids.length === 0) {
+        connections.innerHTML += ' <span class="system">none</span>';
+      }
     }
-    window.dropConnection = id => {
+
+    function drop(id) {
       conns[id].close();
       delete conns[id];
       updateConnections();
-      logSystem('❌ You dropped ' + id);
-    };
+      logSystem(`❌ You dropped ${id}`);
+    }
 
-    // CHAT  
-    sendBtn.onclick = () => {
-      const text = msgInput.value.trim();
+    // ——————————————
+    // CHAT
+    // ——————————————
+    sendBtn.addEventListener('click', () => {
+      const text = messageInput.value.trim();
       if (!text) return;
       const msg = { user: username, avatar: avatarURL, text };
       renderMessage(msg, true);
       Object.values(conns).forEach(c => c.send(msg));
-      msgInput.value = '';
-    };
+      messageInput.value = '';
+    });
 
-  })();
+    // ——————————————
+    // EVENT BINDING
+    // ——————————————
+    window.refreshAvatars = refreshAvatars;
+    window.useBlackAvatar = useBlackAvatar;
+    window.useCustomURL  = useCustomURL;
+    window.connectTo     = connectTo;
+    window.drop          = drop;
+
+    copyIdBtn.addEventListener('click', () =>
+      navigator.clipboard.writeText(myId.value).then(_=> logSystem('Copied ID'))
+    );
+
+    connectManualBtn.addEventListener('click', () =>
+      connectTo(friendId.value.trim())
+    );
+
+    // build quick-connect buttons
+    QUICK_IDS.forEach(fid => {
+      const btn = document.createElement('button');
+      btn.textContent = fid;
+      btn.addEventListener('click', () => connectTo(fid));
+      quickConnect.appendChild(btn);
+    });
+
+    // initial avatars
+    refreshAvatars();
   </script>
 </body>
 </html>
