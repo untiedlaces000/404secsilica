@@ -3,92 +3,88 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>⚡ project silica 404sec v18</title>
+  <title>⚡ project silica 404sec (Quick + Manual Connect)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0 }
     body {
-      display: flex; flex-direction: column;
-      height: 100vh; background: #000;
-      color: #0f0; font-family: monospace;
+      background: #000; color: #0f0;
+      font-family: monospace; display: flex;
+      flex-direction: column; height: 100vh;
       padding: 20px;
     }
     h2 { margin-bottom: 12px }
+    input, button, select {
+      background: #111; color: #0f0;
+      border: 1px solid #0f0; padding: 6px 10px;
+      font-family: monospace; font-size: 1em;
+    }
+    button:disabled { opacity: 0.4; cursor: not-allowed }
+    /* Avatar Picker & Lock */
+    #avatarPicker, #lockScreen {
+      position: fixed; inset: 0; display: none;
+      background: rgba(0,0,0,0.95);
+      flex-direction: column; align-items: center;
+      justify-content: center; z-index: 1000;
+    }
+    #avatarPicker.active, #lockScreen.active { display: flex }
+    #avatarGrid {
+      display: grid; grid-template-columns: repeat(3,80px);
+      gap: 12px; margin: 16px 0;
+    }
+    #avatarGrid img {
+      width: 70px; cursor: pointer;
+      border: 1px solid #0f0; border-radius: 4px;
+    }
+    .avatar-option { margin-top: 10px }
+    /* Layout Groups */
+    #peerArea, #quickConnect, #manualConnect,
+    #connections, #chatbox, #bottom {
+      margin-bottom: 12px;
+    }
+    #quickConnect button { margin-right: 6px; }
+    #connections .conn-item {
+      display: flex; justify-content: space-between;
+      padding: 4px; border: 1px solid #0f0;
+      margin-top: 4px;
+    }
     #chatbox {
       flex: 1; overflow-y: auto;
       background: #111; border: 1px solid #0f0;
-      padding: 10px; margin-bottom: 10px;
+      padding: 10px;
     }
     .message {
       display: flex; align-items: center;
       margin-bottom: 8px;
     }
-    .avatar {
-      width: 36px; height: 36px; object-fit: cover;
-      border: 1px solid #0f0; border-radius: 4px;
-      margin-right: 8px;
+    .avatar-thumb {
+      width: 32px; height: 32px;
+      object-fit: cover; border: 1px solid #0f0;
+      border-radius: 4px; margin-right: 8px;
     }
-    .text { line-height: 1.4 }
+    .text { line-height: 1.2 }
     .system { opacity: 0.6; font-style: italic }
-    #peerArea, #roomArea {
-      display: flex; align-items: center;
-      gap: 8px; margin-bottom: 12px;
-    }
-    input, select, button {
-      background: #111; color: #0f0;
-      border: 1px solid #0f0; padding: 6px 10px;
-      font-family: monospace; font-size: 1em;
-    }
-    input[readonly] { cursor: text }
-    button:disabled { opacity: 0.4; cursor: not-allowed }
-    #connections {
-      margin-bottom: 12px; font-size: 0.9em;
-    }
-    .conn-item {
-      display: flex; justify-content: space-between;
-      padding: 4px; border: 1px solid #0f0;
-      margin-top: 4px;
-    }
-    /* Avatar/Lock screens (unchanged) */
-    #avatarPicker, #lockScreen {
-      position: fixed; inset: 0; display: none;
-      background: rgba(0,0,0,0.95);
-      flex-direction: column; align-items: center;
-      justify-content: center; z-index: 10;
-    }
-    #avatarPicker.active, #lockScreen.active { display: flex }
-    #avatarGrid {
-      display: grid; grid-template-columns: repeat(3,80px);
-      gap: 12px; margin: 12px 0;
-    }
-    #avatarGrid img {
-      width: 70px; cursor: pointer; border: 1px solid #0f0;
-    }
-    .avatar-option { margin-top: 10px }
-    #statusMsg {
-      margin-top: 6px; font-size: 0.9em; color: #f00;
-    }
   </style>
 </head>
 <body oncontextmenu="return false;">
 
-  <!-- untiedlaces , o2 3 , bxr ,hd -->
+  <!-- untiedlaces , 02 3 , bxr ,hd -->
 
   <!-- Avatar Picker -->
   <div id="avatarPicker" class="active">
     <h3>🧙 Choose Your Avatar</h3>
-    <button id="refreshAvatars">🔄 Refresh</button>
+    <button onclick="refreshAvatars()">🔄 Refresh</button>
     <div id="avatarGrid"></div>
     <div class="avatar-option">
-      <button id="blackAvatar">Use Black Avatar</button>
+      <button onclick="chooseAvatar('https://via.placeholder.com/40/000')">
+        Use Black Avatar
+      </button>
     </div>
     <div class="avatar-option">
-      <input id="customURL" placeholder="Custom URL…" />
-      <button id="customOk">OK</button>
+      <input id="customURL" placeholder="Custom URL" />
+      <button onclick="useCustomURL()">OK</button>
     </div>
-    <p style="font-size:12px;">
-      Avatars by Dicebear | Or supply your own URL
-    </p>
+    <p style="font-size:12px;">Avatars by Dicebear | Or supply your own URL</p>
   </div>
 
   <!-- Lock Screen -->
@@ -104,245 +100,191 @@
 
   <h2>⚡ project silica 404sec</h2>
 
-  <!-- Peer Controls -->
+  <!-- Peer Info & Copy -->
   <div id="peerArea">
-    <span>Your ID:</span>
-    <input id="my-id" readonly />
+    Your ID: <input id="my-id" readonly size="20" />
     <button id="copyIdBtn">Copy ID</button>
-    <input id="connectId" placeholder="Friend's ID…" />
-    <button id="connectBtn">Connect</button>
   </div>
 
-  <!-- Room Controls -->
-  <div id="roomArea">
-    <input id="roomName" placeholder="Room name…" />
-    <button id="createRoomBtn">Create Room</button>
-    <button id="listRoomsBtn">List Rooms</button>
-    <select id="roomList" style="min-width:120px;">
-      <option value="" disabled selected>— select —</option>
-    </select>
-    <button id="joinRoomBtn">Join Room</button>
+  <!-- Quick-Connect Buttons -->
+  <div id="quickConnect">
+    <strong>Quick Connect:</strong>
   </div>
-  <div id="statusMsg"></div>
 
-  <!-- Connections & Chat -->
-  <div id="connections"></div>
+  <!-- Manual Friend-ID Connect -->
+  <div id="manualConnect">
+    <input id="friendId" placeholder="Enter Friend ID…" size="20" />
+    <button onclick="connectManual()">Connect</button>
+  </div>
+
+  <!-- Active Connections List -->
+  <div id="connections">
+    <strong>Active Peers:</strong>
+  </div>
+
+  <!-- Chat Display -->
   <div id="chatbox"></div>
+
+  <!-- Send Message -->
   <div id="bottom">
-    <input id="messageInput" placeholder="Type message…" />
+    <input id="messageInput" placeholder="Type message…" size="40" />
     <button id="sendBtn" disabled>Send</button>
   </div>
 
   <script>
   (function(){
-    const REGISTRY_URL = 'http://localhost:3000';
-    let username = prompt("Choose your username:") || "Anonymous";
+    // Permanent IDs for quick-connect
+    const QUICK_IDS = ['peer-A','peer-B','peer-C','peer-D','peer-E'];
+
+    // Avatar & Lock setup
     let avatarURL = '';
+    const username = prompt("Choose your username:") || "Anonymous";
     const styles = ["fun-emoji","pixel-art","bottts","identicon","adventurer","croodles"];
     const seedBase = username.replace(/\W+/g,'').toLowerCase()||'guest';
-    const avatarGrid = document.getElementById('avatarGrid');
-    const statusMsg = document.getElementById('statusMsg');
+    const grid = document.getElementById('avatarGrid');
 
-    // Avatar picker
     function refreshAvatars(){
-      avatarGrid.innerHTML = '';
+      grid.innerHTML = '';
       for(let i=0;i<9;i++){
-        const style=styles[Math.floor(Math.random()*styles.length)];
-        const seed=seedBase+Math.floor(Math.random()*10000);
-        const img=document.createElement('img');
-        img.src=`https://api.dicebear.com/7.x/${style}/svg?seed=${seed}`;
-        img.onclick=()=>chooseAvatar(img.src);
-        avatarGrid.appendChild(img);
+        const style = styles[Math.floor(Math.random()*styles.length)];
+        const seed = seedBase + Math.floor(Math.random()*10000);
+        const img = document.createElement('img');
+        img.src = `https://api.dicebear.com/7.x/${style}/svg?seed=${seed}`;
+        img.onclick = ()=> chooseAvatar(img.src);
+        grid.appendChild(img);
       }
     }
     function chooseAvatar(url){
-      avatarURL=url;
+      avatarURL = url;
       document.getElementById('avatarPicker').classList.remove('active');
       document.getElementById('lockScreen').classList.add('active');
     }
-    document.getElementById('refreshAvatars').onclick=refreshAvatars;
-    document.getElementById('blackAvatar').onclick=()=>chooseAvatar('https://via.placeholder.com/40/000');
-    document.getElementById('customOk').onclick=()=>{
-      const url=document.getElementById('customURL').value.trim();
+    function useCustomURL(){
+      const url = document.getElementById('customURL').value.trim();
       if(url) chooseAvatar(url);
-    };
+    }
     refreshAvatars();
 
-    // Lock screen
-    document.getElementById('unlockForm').addEventListener('submit',e=>{
+    // Unlock form
+    document.getElementById('unlockForm').addEventListener('submit', e=>{
       e.preventDefault();
-      if(document.getElementById('passwordInput').value===':)00@'){
+      if (document.getElementById('passwordInput').value === ':)00@') {
         document.getElementById('lockScreen').classList.remove('active');
       } else {
-        document.getElementById('passwordMsg').textContent='❌ Wrong password';
+        document.getElementById('passwordMsg').textContent = '❌ Incorrect';
       }
     });
 
-    // P2P & UI references
-    const peer=new Peer(), connections={}, connDiv=document.getElementById('connections');
-    const idInput=document.getElementById('my-id'), sendBtn=document.getElementById('sendBtn');
+    // PeerJS setup
+    const peer = new Peer(), connections = {};
+    const idInput = document.getElementById('my-id');
+    const connDiv = document.getElementById('connections');
+    const sendBtn = document.getElementById('sendBtn');
 
-    // Peer events
-    peer.on('open', id=>{
-      idInput.value=id;
-      listRooms();
+    peer.on('open', id => {
+      idInput.value = id;
     });
-    peer.on('connection', c=>{
-      if(!connections[c.peer]) setupConnection(c);
+    peer.on('connection', c => {
+      if (!connections[c.peer]) setupConnection(c);
     });
 
-    // Copy ID
-    document.getElementById('copyIdBtn').onclick=()=>{
+    // Copy own ID
+    document.getElementById('copyIdBtn').onclick = ()=>{
       navigator.clipboard.writeText(idInput.value)
-        .then(()=>alert('ID copied'));
+        .then(()=> alert('ID copied'));
     };
 
-    // Connect to single peer
-    document.getElementById('connectBtn').onclick=()=>{
-      const fid=document.getElementById('connectId').value.trim();
-      if(!fid||connections[fid]||fid===peer.id) return;
-      const c=peer.connect(fid);
-      c.on('open',()=>setupConnection(c));
+    // Quick-connect buttons
+    const qcDiv = document.getElementById('quickConnect');
+    QUICK_IDS.forEach(fid => {
+      const btn = document.createElement('button');
+      btn.textContent = fid;
+      btn.onclick = ()=> connectPeer(fid);
+      qcDiv.appendChild(btn);
+    });
+
+    // Manual connect
+    window.connectManual = ()=>{
+      const fid = document.getElementById('friendId').value.trim();
+      connectPeer(fid);
     };
 
-    // Setup connection handlers
+    function connectPeer(peerId){
+      if (!peerId || peerId === peer.id || connections[peerId]) return;
+      const c = peer.connect(peerId);
+      c.on('open', ()=> setupConnection(c));
+    }
+
+    // Connection handler
     function setupConnection(c){
-      connections[c.peer]=c;
+      connections[c.peer] = c;
       renderConnections();
-      appendSystemMsg(`Connected: ${c.peer}`);
-      c.on('data',data=>appendMessage(data,false));
-      c.on('close',()=>{
+      appendSystemMsg(`✅ Connected to ${c.peer}`);
+      c.on('data', data => appendMessage(data, false));
+      c.on('close', ()=>{
         delete connections[c.peer];
-        appendSystemMsg(`Peer left: ${c.peer}`);
+        appendSystemMsg(`❌ ${c.peer} disconnected`);
         renderConnections();
       });
     }
 
-    // Room controls
-    document.getElementById('createRoomBtn').onclick=createRoom;
-    document.getElementById('listRoomsBtn').onclick=listRooms;
-    document.getElementById('joinRoomBtn').onclick=joinRoom;
-
-    async function createRoom(){
-      const room=document.getElementById('roomName').value.trim();
-      statusMsg.textContent='';
-      if(!room) return statusMsg.textContent='⚠️ Enter a room name';
-      try {
-        const res=await fetch(`${REGISTRY_URL}/rooms`,{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({room})
-        });
-        if(!res.ok) throw new Error(await res.text());
-        document.getElementById('roomName').value='';
-        await listRooms();
-        statusMsg.style.color='#0f0';
-        statusMsg.textContent=`✅ Room "${room}" created`;
-      } catch(err){
-        statusMsg.style.color='#f00';
-        statusMsg.textContent=`❌ ${err.message}`;
-      }
-    }
-
-    async function listRooms(){
-      statusMsg.textContent='';
-      try {
-        const res=await fetch(`${REGISTRY_URL}/rooms`);
-        if(!res.ok) throw new Error(await res.text());
-        const rooms=await res.json();
-        const sel=document.getElementById('roomList');
-        sel.innerHTML='<option value="" disabled selected>— select —</option>'
-          +rooms.map(r=>`<option value="${r}">${r}</option>`).join('');
-      } catch(err){
-        statusMsg.style.color='#f00';
-        statusMsg.textContent=`❌ ${err.message}`;
-      }
-    }
-
-    async function joinRoom(){
-      const room=document.getElementById('roomList').value;
-      statusMsg.textContent='';
-      if(!room) return statusMsg.textContent='⚠️ Select a room';
-      try {
-        // register
-        let res=await fetch(`${REGISTRY_URL}/rooms/${room}/join`,{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({peerId:peer.id})
-        });
-        if(!res.ok) throw new Error(await res.text());
-        appendSystemMsg(`Joined room: ${room}`);
-        // fetch and connect
-        res=await fetch(`${REGISTRY_URL}/rooms/${room}/peers`);
-        const peers=await res.json();
-        peers.forEach(pid=>{
-          if(pid!==peer.id && !connections[pid]){
-            const c=peer.connect(pid);
-            c.on('open',()=>setupConnection(c));
-          }
-        });
-      } catch(err){
-        statusMsg.style.color='#f00';
-        statusMsg.textContent=`❌ ${err.message}`;
-      }
-    }
-
-    // Render connections list
     function renderConnections(){
-      connDiv.innerHTML='<strong>Active Peers:</strong>';
-      const ids=Object.keys(connections);
-      if(!ids.length){
-        connDiv.innerHTML+='<div class="system">— none —</div>';
+      connDiv.innerHTML = '<strong>Active Peers:</strong>';
+      const list = Object.keys(connections);
+      if (!list.length) {
+        connDiv.innerHTML += ' <span class="system">none</span>';
       }
-      ids.forEach(id=>{
-        const item=document.createElement('div');
-        item.className='conn-item';
-        item.innerHTML=`
+      list.forEach(id => {
+        const item = document.createElement('div');
+        item.className = 'conn-item';
+        item.innerHTML = `
           <span>${id}</span>
-          <button onclick="disconnectPeer('${id}')">✖</button>
+          <button onclick="disconnect('${id}')">✖</button>
         `;
         connDiv.appendChild(item);
       });
-      sendBtn.disabled=ids.length===0;
+      sendBtn.disabled = list.length === 0;
     }
 
-    // Global for disconnect
-    window.disconnectPeer=function(id){
+    window.disconnect = id => {
       connections[id].close();
       delete connections[id];
       renderConnections();
-      appendSystemMsg(`You disconnected: ${id}`);
+      appendSystemMsg(`❌ You disconnected ${id}`);
     };
 
-    // Messaging
-    document.getElementById('sendBtn').onclick=()=>{
-      const inp=document.getElementById('messageInput');
-      const text=inp.value.trim();
-      if(!text) return;
-      const msg={user:username,avatar:avatarURL,text};
-      appendMessage(msg,true);
-      Object.values(connections).forEach(c=>c.open&&c.send(msg));
-      inp.value='';
+    // Chat send
+    sendBtn.onclick = ()=>{
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (!text) return;
+      const msg = { user: username, avatar: avatarURL, text };
+      appendMessage(msg, true);
+      Object.values(connections).forEach(c=> c.open && c.send(msg));
+      input.value = '';
     };
-    function appendMessage({user,avatar,text},isYou){
-      const div=document.createElement('div');
-      div.className='message';
-      div.innerHTML=`
-        <img class="avatar" src="${avatar}" />
-        <div class="text"><strong>${isYou?'You':user}</strong>: ${text}</div>
+
+    function appendMessage({user,avatar,text}, isYou){
+      const div = document.createElement('div');
+      div.className = 'message';
+      div.innerHTML = `
+        <img class="avatar-thumb" src="${avatar}" />
+        <div class="text">
+          <strong>${isYou?'You':user}:</strong> ${text}
+        </div>
       `;
       document.getElementById('chatbox').appendChild(div);
-      chatbox.scrollTop=chatbox.scrollHeight;
+      chatbox.scrollTop = chatbox.scrollHeight;
     }
+
     function appendSystemMsg(msg){
-      const div=document.createElement('div');
-      div.className='text system';
-      div.textContent=msg;
+      const div = document.createElement('div');
+      div.className = 'text system';
+      div.textContent = msg;
       document.getElementById('chatbox').appendChild(div);
-      chatbox.scrollTop=chatbox.scrollHeight;
+      chatbox.scrollTop = chatbox.scrollHeight;
     }
   })();
   </script>
-
 </body>
 </html>
