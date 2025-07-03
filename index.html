@@ -1,269 +1,249 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>P2P-projectsilica-404sec</title>
+  <meta charset="UTF-8">
+  <title>⚡ project silica 404sec (Enhanced Multi-Peer)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-function refreshAvatars() {
-  avatarGrid.innerHTML = ""; // Clear current avatars
-  for (let i = 0; i < 9; i++) {
-    const style = styles[Math.floor(Math.random() * styles.length)];
-    const seed = avatarSeed + Math.floor(Math.random() * 10000);
-    const img = document.createElement("img");
-    img.src = `https://api.dicebear.com/7.x/${style}/svg?seed=${seed}`;
-    img.title = `Style: ${style}`;
-    img.onclick = () => {
-      avatarURL = img.src;
-      document.getElementById("avatarPicker").style.display = "none";
-      document.getElementById("lockScreen").style.display = "flex";
-    };
-    avatarGrid.appendChild(img);
-  }
-}
+    /* Reset & Layout */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      margin: 0;
-      font-family: monospace;
-      background: #000;
-      color: #0f0;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
+      display: flex; flex-direction: column;
+      height: 100vh; background: #000;
+      color: #0f0; font-family: monospace;
       padding: 20px;
     }
+
+    /* Chat area */
     #chatbox {
-      flex: 1;
-      overflow-y: auto;
-      border: 1px solid #0f0;
-      padding: 10px;
-      background: #111;
-      margin-bottom: 10px;
+      flex: 1; overflow-y: auto;
+      background: #111; border: 1px solid #0f0;
+      padding: 10px; margin-bottom: 10px;
     }
     .message {
-      display: flex;
-      align-items: center;
-      margin-bottom: 10px;
+      display: flex; align-items: center;
+      margin-bottom: 8px;
     }
     .avatar {
-      width: 40px;
-      height: 40px;
-      object-fit: cover;
-      border: 1px solid #0f0;
-      margin-right: 10px;
-      border-radius: 4px;
+      width: 36px; height: 36px; object-fit: cover;
+      border: 1px solid #0f0; border-radius: 4px;
+      margin-right: 8px;
     }
-    .text {
-      line-height: 1.4;
+    .text { line-height: 1.4; }
+    .system { opacity: 0.6; font-style: italic; }
+
+    /* Peer & controls panel */
+    #peerArea {
+      display: flex; align-items: center;
+      gap: 8px; margin-bottom: 12px;
+    }
+    #connections {
+      margin-top: 8px; font-size: 0.9em;
+    }
+    .conn-item {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      margin-top: 4px; padding: 4px;
+      border: 1px solid #0f0;
+    }
+
+    /* Bottom input */
+    #bottom {
+      display: flex; gap: 8px;
     }
     input, button {
-      background: #111;
-      color: #0f0;
-      border: 1px solid #0f0;
-      padding: 10px;
-      font-family: monospace;
+      background: #111; color: #0f0;
+      border: 1px solid #0f0; padding: 8px;
+      font-family: monospace; font-size: 1em;
     }
-    #bottom {
-      display: flex;
-      gap: 10px;
-    }
-    #peerArea {
-      margin-bottom: 10px;
-    }
-    #avatarPicker {
-      position: fixed;
-      inset: 0;
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Avatar Picker & Lock Screen */
+    #avatarPicker, #lockScreen {
+      position: fixed; inset: 0; display: none;
       background: rgba(0,0,0,0.95);
-      z-index: 10000;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-family: monospace;
-      color: #0f0;
+      flex-direction: column; align-items: center;
+      justify-content: center; z-index: 10;
     }
-    #avatarGrid {
-      display: grid;
-      grid-template-columns: repeat(3, 80px);
-      gap: 15px;
-      margin: 20px 0;
-    }
+    #avatarPicker.active, #lockScreen.active { display: flex; }
+    #avatarGrid { display: grid; grid-template-columns: repeat(3, 80px); gap: 12px; }
     #avatarGrid img {
-      width: 70px;
-      border: 1px solid #0f0;
-      cursor: pointer;
+      width: 70px; cursor: pointer; border: 1px solid #0f0;
     }
-    .avatar-option {
-      margin-top: 10px;
-    }
+    .avatar-option { margin-top: 10px; }
   </style>
 </head>
 <body oncontextmenu="return false;">
 
- <!-- Avatar Picker -->
-<div id="avatarPicker">
-  <h3>🧙 Choose Your Avatar</h3>
-  
-  <div class="avatar-option">
-    <button onclick="refreshAvatars()">🔄 Refresh Avatars</button>
+  <!-- Avatar Picker -->
+  <div id="avatarPicker" class="active">
+    <h3>🧙 Choose Your Avatar</h3>
+    <button onclick="refreshAvatars()">🔄 Refresh</button>
+    <div id="avatarGrid"></div>
+    <div class="avatar-option">
+      <button onclick="useBlackAvatar()">Use Black Avatar</button>
+    </div>
+    <div class="avatar-option">
+      <input id="customURL" placeholder="Custom URL" />
+      <button onclick="useCustomURL()">OK</button>
+    </div>
+    <p style="font-size:12px;">Avatars by Dicebear | Or supply your own URL</p>
   </div>
 
-  <div id="avatarGrid"></div>
-
-  <div class="avatar-option">
-    <button onclick="useBlackAvatar()">Use Black Avatar</button>
-  </div>
-
-  <div class="avatar-option">
-    <input type="text" id="customURL" placeholder="Your image URL..." style="width: 200px;" />
-    <button onclick="useCustomURL()">Use Custom URL</button>
-  </div>
-
-  <p style="font-size: 12px;">Generated avatars by Dicebear | You can also use your own image</p>
-</div>
-  <!-- Password Lock Screen (hidden initially) -->
-  <div id="lockScreen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: #000; z-index: 9999; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; color: #0f0; font-family: monospace;">
-    <h2>🔐 Enter Password to Access Chat</h2>
+  <!-- Lock Screen -->
+  <div id="lockScreen">
+    <h2>🔐 Enter Password</h2>
     <form id="unlockForm">
-      <input type="password" id="passwordInput" placeholder="Password..." required autocomplete="off" />
+      <input type="password" id="passwordInput" placeholder="Password" required autocomplete="off" />
       <button type="submit">Unlock</button>
     </form>
-    <p id="passwordMsg" style="margin-top:10px; color:red;"></p>
+    <p id="passwordMsg" style="color:red; margin-top:8px;"></p>
   </div>
-
-  <!--credits: untied , o2 , BR.MKS.EDITS , hd-->
+<!--untiedlaces , 02 3 , BXR , HD -->
+  <!-- Header & Peer Controls -->
   <h2>⚡ project silica 404sec</h2>
-
   <div id="peerArea">
-    <p>Your ID: <span id="my-id">...</span></p>
-    <input id="connectId" placeholder="Enter friend's ID to connect" />
+    <span>Your ID: <strong id="my-id">...</strong></span>
+    <input id="connectId" placeholder="Friend's ID" />
     <button onclick="connectToPeer()">Connect</button>
   </div>
 
+  <!-- Active Connections List -->
+  <div id="connections"></div>
+
+  <!-- Chat Display -->
   <div id="chatbox"></div>
 
+  <!-- Message Input -->
   <div id="bottom">
-    <input id="messageInput" placeholder="Type message..." />
-    <button onclick="sendMessage()">Send</button>
+    <input id="messageInput" placeholder="Type message…" />
+    <button id="sendBtn" onclick="sendMessage()" disabled>Send</button>
   </div>
 
   <script>
-    let username = prompt("Choose your username:") || "Anonymous";
-    let avatarURL = "";
+  // USER / AVATAR SETUP
+  let username = prompt("Choose your username:") || "Anonymous";
+  let avatarURL = "";
+  const styles = ["fun-emoji","pixel-art","bottts","identicon","adventurer","croodles"];
+  const seedBase = username.replace(/\W+/g,'').toLowerCase() || 'guest';
+  const grid = document.getElementById('avatarGrid');
 
-    const styles = ["fun-emoji", "pixel-art", "bottts", "identicon", "adventurer", "croodles"];
-    const avatarSeed = username.replace(/\W+/g, '').toLowerCase() || "guest";
-    const avatarGrid = document.getElementById("avatarGrid");
-
-    for (let i = 0; i < 9; i++) {
-      const style = styles[Math.floor(Math.random() * styles.length)];
-      const seed = avatarSeed + Math.floor(Math.random() * 1000);
-      const img = document.createElement("img");
+  function refreshAvatars() {
+    grid.innerHTML = '';
+    for (let i=0; i<9; i++){
+      const style = styles[Math.floor(Math.random()*styles.length)];
+      const seed = seedBase + Math.floor(Math.random()*10000);
+      const img = document.createElement('img');
       img.src = `https://api.dicebear.com/7.x/${style}/svg?seed=${seed}`;
-      img.title = `Style: ${style}`;
-      img.onclick = () => {
-        avatarURL = img.src;
-        document.getElementById("avatarPicker").style.display = "none";
-        document.getElementById("lockScreen").style.display = "flex";
-      };
-      avatarGrid.appendChild(img);
+      img.onclick = ()=> chooseAvatar(img.src);
+      grid.appendChild(img);
     }
+  }
+  function chooseAvatar(url) {
+    avatarURL = url;
+    document.getElementById('avatarPicker').classList.remove('active');
+    document.getElementById('lockScreen').classList.add('active');
+  }
+  function useBlackAvatar() { chooseAvatar('https://via.placeholder.com/40/000'); }
+  function useCustomURL() {
+    const url = document.getElementById('customURL').value.trim();
+    if (url) chooseAvatar(url);
+  }
+  refreshAvatars();
 
-    function useBlackAvatar() {
-      avatarURL = "https://via.placeholder.com/40x40/000/000";
-      document.getElementById("avatarPicker").style.display = "none";
-      document.getElementById("lockScreen").style.display = "flex";
+  // LOCK SCREEN
+  document.getElementById('unlockForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const pw = document.getElementById('passwordInput').value;
+    if (pw===':)00@') {
+      document.getElementById('lockScreen').classList.remove('active');
+    } else {
+      document.getElementById('passwordMsg').textContent = '❌ Wrong password';
     }
+  });
 
-    function useCustomURL() {
-      const url = document.getElementById("customURL").value.trim();
-      if (url) {
-        avatarURL = url;
-        document.getElementById("avatarPicker").style.display = "none";
-        document.getElementById("lockScreen").style.display = "flex";
-      }
-    }
+  // P2P SETUP
+  const peer = new Peer(), connections = {};
+  const connDiv = document.getElementById('connections');
+  const sendBtn = document.getElementById('sendBtn');
 
-    document.getElementById('unlockForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const pw = document.getElementById('passwordInput').value;
-      const msg = document.getElementById('passwordMsg');
-      if (pw === ':)00@') {
-        document.getElementById('lockScreen').style.display = 'none';
-      } else {
-        msg.textContent = '❌ Incorrect password.';
-      }
+  peer.on('open', id => {
+    document.getElementById('my-id').textContent = id;
+  });
+
+  peer.on('connection', conn => {
+    if (!connections[conn.peer]) setupConnection(conn);
+  });
+
+  function setupConnection(conn) {
+    connections[conn.peer] = conn;
+    renderConnectionList();
+    conn.on('data', data => appendMessage(data, false));
+    conn.on('close', () => {
+      delete connections[conn.peer];
+      appendSystemMsg(`Peer disconnected: ${conn.peer}`);
+      renderConnectionList();
     });
+    appendSystemMsg(`Connected: ${conn.peer}`);
+    renderConnectionList();
+  }
 
-    const peer = new Peer();
-    let conn = null;
+  function connectToPeer() {
+    const id = document.getElementById('connectId').value.trim();
+    if (!id || connections[id] || id===peer.id) return;
+    const conn = peer.connect(id);
+    conn.on('open', ()=> setupConnection(conn));
+  }
 
-    document.getElementById('my-id').textContent = '...';
-    peer.on('open', id => {
-      document.getElementById('my-id').textContent = id;
+  function disconnectPeer(peerId) {
+    connections[peerId].close();
+    delete connections[peerId];
+    renderConnectionList();
+    appendSystemMsg(`You disconnected: ${peerId}`);
+  }
+
+  function renderConnectionList() {
+    connDiv.innerHTML = '<strong>Active Peers:</strong>';
+    const peers = Object.keys(connections);
+    if (!peers.length) connDiv.innerHTML += '<div class="system">— none —</div>';
+    peers.forEach(id => {
+      const item = document.createElement('div');
+      item.className = 'conn-item';
+      item.innerHTML = `<span>${id}</span>
+        <button onclick="disconnectPeer('${id}')">✖</button>`;
+      connDiv.appendChild(item);
     });
+    sendBtn.disabled = peers.length===0;
+  }
 
-    peer.on('connection', connection => {
-      conn = connection;
-      conn.on('data', renderIncomingMessage);
-      appendSystemMsg("✅ Incoming connection established");
-    });
+  // MESSAGING
+  function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const text = input.value.trim();
+    if (!text) return;
+    const payload = { user: username, avatar: avatarURL, text };
+    appendMessage(payload, true);
+    Object.values(connections).forEach(c => c.open && c.send(payload));
+    input.value = '';
+  }
 
-    function connectToPeer() {
-      const friendId = document.getElementById('connectId').value.trim();
-      if (!friendId) return;
-      conn = peer.connect(friendId);
-      conn.on('open', () => {
-        appendSystemMsg("✅ Connected to peer");
-        conn.on('data', renderIncomingMessage);
-      });
-    }
+  function appendMessage({user,avatar,text}, isYou) {
+    const div = document.createElement('div');
+    div.className = 'message';
+    div.innerHTML =
+      `<img class="avatar" src="${avatar}" />
+       <div class="text"><strong>${isYou?'You':user}</strong>: ${text}</div>`;
+    document.getElementById('chatbox').appendChild(div);
+    chatbox.scrollTop = chatbox.scrollHeight;
+  }
 
-    function sendMessage() {
-      const input = document.getElementById('messageInput');
-      const msg = input.value.trim();
-      if (!msg || !conn || !conn.open) return;
-
-      const payload = {
-        user: username,
-        avatar: avatarURL,
-        text: msg
-      };
-
-      appendMessage(payload, true);
-      conn.send(payload);
-      input.value = '';
-    }
-
-    function renderIncomingMessage(data) {
-      appendMessage(data, false);
-    }
-
-    function appendMessage(data, isYou) {
-      const div = document.createElement('div');
-      div.className = 'message';
-
-      const avatar = document.createElement('img');
-      avatar.className = 'avatar';
-      avatar.src = data.avatar;
-
-      const text = document.createElement('div');
-      text.className = 'text';
-      text.innerHTML = `<strong>${isYou ? "You" : data.user}</strong>: ${data.text}`;
-
-      div.appendChild(avatar);
-      div.appendChild(text);
-      document.getElementById('chatbox').appendChild(div);
-      document.getElementById('chatbox').scrollTop = chatbox.scrollHeight;
-    }
-
-    function appendSystemMsg(msg) {
-      const div = document.createElement('div');
-      div.className = 'text';
-      div.textContent = msg;
-      document.getElementById('chatbox').appendChild(div);
-    }
+  function appendSystemMsg(msg) {
+    const div = document.createElement('div');
+    div.className = 'text system';
+    div.textContent = msg;
+    document.getElementById('chatbox').appendChild(div);
+    chatbox.scrollTop = chatbox.scrollHeight;
+  }
   </script>
-
 </body>
 </html>
