@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>⚡ project silica 404sec (Enhanced Multi-Peer)</title>
+  <title>⚡ project silica 404sec (Room Registry)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-    /* Reset & Layout */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       display: flex; flex-direction: column;
@@ -13,8 +12,6 @@
       color: #0f0; font-family: monospace;
       padding: 20px;
     }
-
-    /* Chat area */
     #chatbox {
       flex: 1; overflow-y: auto;
       background: #111; border: 1px solid #0f0;
@@ -31,34 +28,27 @@
     }
     .text { line-height: 1.4; }
     .system { opacity: 0.6; font-style: italic; }
-
-    /* Peer & controls panel */
-    #peerArea {
+    #peerArea, #roomArea {
       display: flex; align-items: center;
       gap: 8px; margin-bottom: 12px;
     }
     #connections {
-      margin-top: 8px; font-size: 0.9em;
+      margin-bottom: 12px; font-size: 0.9em;
     }
     .conn-item {
-      display: flex; align-items: center;
-      justify-content: space-between;
-      margin-top: 4px; padding: 4px;
-      border: 1px solid #0f0;
+      display: flex; justify-content: space-between;
+      padding: 4px; border: 1px solid #0f0;
+      margin-top: 4px;
     }
-
-    /* Bottom input */
     #bottom {
       display: flex; gap: 8px;
     }
-    input, button {
+    input, button, select {
       background: #111; color: #0f0;
       border: 1px solid #0f0; padding: 8px;
       font-family: monospace; font-size: 1em;
     }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    /* Avatar Picker & Lock Screen */
     #avatarPicker, #lockScreen {
       position: fixed; inset: 0; display: none;
       background: rgba(0,0,0,0.95);
@@ -66,9 +56,13 @@
       justify-content: center; z-index: 10;
     }
     #avatarPicker.active, #lockScreen.active { display: flex; }
-    #avatarGrid { display: grid; grid-template-columns: repeat(3, 80px); gap: 12px; }
+    #avatarGrid {
+      display: grid; grid-template-columns: repeat(3,80px);
+      gap: 12px; margin: 12px 0;
+    }
     #avatarGrid img {
-      width: 70px; cursor: pointer; border: 1px solid #0f0;
+      width: 70px; cursor: pointer;
+      border: 1px solid #0f0;
     }
     .avatar-option { margin-top: 10px; }
   </style>
@@ -99,13 +93,24 @@
     </form>
     <p id="passwordMsg" style="color:red; margin-top:8px;"></p>
   </div>
-<!--untiedlaces , 02 3 , BXR , HD -->
-  <!-- Header & Peer Controls -->
+
+  <!-- Header -->
   <h2>⚡ project silica 404sec</h2>
+
+  <!-- Peer Controls -->
   <div id="peerArea">
     <span>Your ID: <strong id="my-id">...</strong></span>
     <input id="connectId" placeholder="Friend's ID" />
     <button onclick="connectToPeer()">Connect</button>
+  </div>
+
+  <!-- Room Registry Controls -->
+  <div id="roomArea">
+    <input id="roomName" placeholder="Room name…" />
+    <button onclick="createRoom()">Create Room</button>
+    <button onclick="listRooms()">List Rooms</button>
+    <select id="roomList" style="min-width:120px;"></select>
+    <button onclick="joinRoom()">Join Room</button>
   </div>
 
   <!-- Active Connections List -->
@@ -121,129 +126,170 @@
   </div>
 
   <script>
-  // USER / AVATAR SETUP
-  let username = prompt("Choose your username:") || "Anonymous";
-  let avatarURL = "";
-  const styles = ["fun-emoji","pixel-art","bottts","identicon","adventurer","croodles"];
-  const seedBase = username.replace(/\W+/g,'').toLowerCase() || 'guest';
-  const grid = document.getElementById('avatarGrid');
+    // CONFIG
+    const REGISTRY_URL = 'http://localhost:3000';
 
-  function refreshAvatars() {
-    grid.innerHTML = '';
-    for (let i=0; i<9; i++){
-      const style = styles[Math.floor(Math.random()*styles.length)];
-      const seed = seedBase + Math.floor(Math.random()*10000);
-      const img = document.createElement('img');
-      img.src = `https://api.dicebear.com/7.x/${style}/svg?seed=${seed}`;
-      img.onclick = ()=> chooseAvatar(img.src);
-      grid.appendChild(img);
+    // USER & AVATAR SETUP
+    let username = prompt("Choose your username:") || "Anonymous";
+    let avatarURL = '';
+    const styles = ["fun-emoji","pixel-art","bottts","identicon","adventurer","croodles"];
+    const seedBase = username.replace(/\W+/g,'').toLowerCase() || 'guest';
+    const grid = document.getElementById('avatarGrid');
+
+    function refreshAvatars() {
+      grid.innerHTML = '';
+      for (let i=0; i<9; i++){
+        const style = styles[Math.floor(Math.random()*styles.length)];
+        const seed = seedBase + Math.floor(Math.random()*10000);
+        const img = document.createElement('img');
+        img.src = `https://api.dicebear.com/7.x/${style}/svg?seed=${seed}`;
+        img.onclick = ()=> chooseAvatar(img.src);
+        grid.appendChild(img);
+      }
     }
-  }
-  function chooseAvatar(url) {
-    avatarURL = url;
-    document.getElementById('avatarPicker').classList.remove('active');
-    document.getElementById('lockScreen').classList.add('active');
-  }
-  function useBlackAvatar() { chooseAvatar('https://via.placeholder.com/40/000'); }
-  function useCustomURL() {
-    const url = document.getElementById('customURL').value.trim();
-    if (url) chooseAvatar(url);
-  }
-  refreshAvatars();
-
-  // LOCK SCREEN
-  document.getElementById('unlockForm').addEventListener('submit', e=>{
-    e.preventDefault();
-    const pw = document.getElementById('passwordInput').value;
-    if (pw===':)00@') {
-      document.getElementById('lockScreen').classList.remove('active');
-    } else {
-      document.getElementById('passwordMsg').textContent = '❌ Wrong password';
+    function chooseAvatar(url) {
+      avatarURL = url;
+      document.getElementById('avatarPicker').classList.remove('active');
+      document.getElementById('lockScreen').classList.add('active');
     }
-  });
+    function useBlackAvatar() { chooseAvatar('https://via.placeholder.com/40/000'); }
+    function useCustomURL() {
+      const url = document.getElementById('customURL').value.trim();
+      if (url) chooseAvatar(url);
+    }
+    refreshAvatars();
 
-  // P2P SETUP
-  const peer = new Peer(), connections = {};
-  const connDiv = document.getElementById('connections');
-  const sendBtn = document.getElementById('sendBtn');
+    // LOCK SCREEN
+    document.getElementById('unlockForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const pw = document.getElementById('passwordInput').value;
+      if (pw === ':)00@') {
+        document.getElementById('lockScreen').classList.remove('active');
+      } else {
+        document.getElementById('passwordMsg').textContent = '❌ Wrong password';
+      }
+    });
 
-  peer.on('open', id => {
-    document.getElementById('my-id').textContent = id;
-  });
+    // P2P & ROOM LOGIC
+    const peer = new Peer(), connections = {};
+    const connDiv = document.getElementById('connections');
+    const sendBtn = document.getElementById('sendBtn');
 
-  peer.on('connection', conn => {
-    if (!connections[conn.peer]) setupConnection(conn);
-  });
+    peer.on('open', id => {
+      document.getElementById('my-id').textContent = id;
+      listRooms();
+    });
 
-  function setupConnection(conn) {
-    connections[conn.peer] = conn;
-    renderConnectionList();
-    conn.on('data', data => appendMessage(data, false));
-    conn.on('close', () => {
-      delete connections[conn.peer];
-      appendSystemMsg(`Peer disconnected: ${conn.peer}`);
+    peer.on('connection', conn => {
+      if (!connections[conn.peer]) setupConnection(conn);
+    });
+
+    function setupConnection(conn) {
+      connections[conn.peer] = conn;
       renderConnectionList();
-    });
-    appendSystemMsg(`Connected: ${conn.peer}`);
-    renderConnectionList();
-  }
+      conn.on('data', data => appendMessage(data, false));
+      conn.on('close', () => {
+        delete connections[conn.peer];
+        appendSystemMsg(`Peer left: ${conn.peer}`);
+        renderConnectionList();
+      });
+      appendSystemMsg(`Connected: ${conn.peer}`);
+      renderConnectionList();
+    }
 
-  function connectToPeer() {
-    const id = document.getElementById('connectId').value.trim();
-    if (!id || connections[id] || id===peer.id) return;
-    const conn = peer.connect(id);
-    conn.on('open', ()=> setupConnection(conn));
-  }
+    function connectToPeer() {
+      const id = document.getElementById('connectId').value.trim();
+      if (!id || connections[id] || id === peer.id) return;
+      const conn = peer.connect(id);
+      conn.on('open', () => setupConnection(conn));
+    }
 
-  function disconnectPeer(peerId) {
-    connections[peerId].close();
-    delete connections[peerId];
-    renderConnectionList();
-    appendSystemMsg(`You disconnected: ${peerId}`);
-  }
+    async function createRoom() {
+      const name = document.getElementById('roomName').value.trim();
+      if (!name) return alert('Enter a room name');
+      await fetch(`${REGISTRY_URL}/rooms`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ room: name })
+      });
+      listRooms();
+    }
 
-  function renderConnectionList() {
-    connDiv.innerHTML = '<strong>Active Peers:</strong>';
-    const peers = Object.keys(connections);
-    if (!peers.length) connDiv.innerHTML += '<div class="system">— none —</div>';
-    peers.forEach(id => {
-      const item = document.createElement('div');
-      item.className = 'conn-item';
-      item.innerHTML = `<span>${id}</span>
-        <button onclick="disconnectPeer('${id}')">✖</button>`;
-      connDiv.appendChild(item);
-    });
-    sendBtn.disabled = peers.length===0;
-  }
+    async function listRooms() {
+      const res = await fetch(`${REGISTRY_URL}/rooms`);
+      const rooms = await res.json();
+      const sel = document.getElementById('roomList');
+      sel.innerHTML = rooms.map(r => `<option>${r}</option>`).join('');
+    }
 
-  // MESSAGING
-  function sendMessage() {
-    const input = document.getElementById('messageInput');
-    const text = input.value.trim();
-    if (!text) return;
-    const payload = { user: username, avatar: avatarURL, text };
-    appendMessage(payload, true);
-    Object.values(connections).forEach(c => c.open && c.send(payload));
-    input.value = '';
-  }
+    async function joinRoom() {
+      const room = document.getElementById('roomList').value;
+      if (!room) return alert('Select a room');
+      // register
+      await fetch(`${REGISTRY_URL}/rooms/${room}/join`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ peerId: peer.id })
+      });
+      appendSystemMsg(`Joined room: ${room}`);
+      // fetch members
+      const res = await fetch(`${REGISTRY_URL}/rooms/${room}/peers`);
+      const peers = await res.json();
+      peers.forEach(pid => {
+        if (pid !== peer.id && !connections[pid]) {
+          const c = peer.connect(pid);
+          c.on('open', () => setupConnection(c));
+        }
+      });
+    }
 
-  function appendMessage({user,avatar,text}, isYou) {
-    const div = document.createElement('div');
-    div.className = 'message';
-    div.innerHTML =
-      `<img class="avatar" src="${avatar}" />
-       <div class="text"><strong>${isYou?'You':user}</strong>: ${text}</div>`;
-    document.getElementById('chatbox').appendChild(div);
-    chatbox.scrollTop = chatbox.scrollHeight;
-  }
+    function disconnectPeer(peerId) {
+      connections[peerId].close();
+      delete connections[peerId];
+      renderConnectionList();
+      appendSystemMsg(`You disconnected: ${peerId}`);
+    }
 
-  function appendSystemMsg(msg) {
-    const div = document.createElement('div');
-    div.className = 'text system';
-    div.textContent = msg;
-    document.getElementById('chatbox').appendChild(div);
-    chatbox.scrollTop = chatbox.scrollHeight;
-  }
+    function renderConnectionList() {
+      connDiv.innerHTML = '<strong>Active Peers:</strong>';
+      const list = Object.keys(connections);
+      if (!list.length) connDiv.innerHTML += '<div class="system">— none —</div>';
+      list.forEach(id => {
+        const item = document.createElement('div');
+        item.className = 'conn-item';
+        item.innerHTML = `<span>${id}</span>
+                          <button onclick="disconnectPeer('${id}')">✖</button>`;
+        connDiv.appendChild(item);
+      });
+      sendBtn.disabled = list.length === 0;
+    }
+
+    // MESSAGING
+    function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (!text) return;
+      const payload = { user: username, avatar: avatarURL, text };
+      appendMessage(payload, true);
+      Object.values(connections).forEach(c => c.open && c.send(payload));
+      input.value = '';
+    }
+
+    function appendMessage({user, avatar, text}, isYou) {
+      const div = document.createElement('div');
+      div.className = 'message';
+      div.innerHTML =
+        `<img class="avatar" src="${avatar}" />
+         <div class="text"><strong>${isYou?'You':user}</strong>: ${text}</div>`;
+      document.getElementById('chatbox').appendChild(div);
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+
+    function appendSystemMsg(msg) {
+      const div = document.createElement('div');
+      div.className = 'text system';
+      div.textContent = msg;
+      document.getElementById('chatbox').appendChild(div);
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
   </script>
 </body>
 </html>
