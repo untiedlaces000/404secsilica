@@ -223,26 +223,43 @@
     document.getElementById('listRoomsBtn').onclick=listRooms;
     document.getElementById('joinRoomBtn').onclick=joinRoom;
 
-    async function createRoom(){
-      const room=document.getElementById('roomName').value.trim();
-      statusMsg.textContent='';
-      if(!room) return statusMsg.textContent='⚠️ Enter a room name';
-      try {
-        const res=await fetch(`${REGISTRY_URL}/rooms`,{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({room})
-        });
-        if(!res.ok) throw new Error(await res.text());
-        document.getElementById('roomName').value='';
-        await listRooms();
-        statusMsg.style.color='#0f0';
-        statusMsg.textContent=`✅ Room "${room}" created`;
-      } catch(err){
-        statusMsg.style.color='#f00';
-        statusMsg.textContent=`❌ ${err.message}`;
-      }
+   async function createRoom() {
+  const room = document.getElementById('roomName').value.trim();
+  document.getElementById('statusMsg').textContent = '';
+  if (!room) {
+    return document.getElementById('statusMsg').textContent =
+      '⚠️ Enter a room name';
+  }
+
+  try {
+    console.log('Sending POST /rooms', { room });
+    const res = await fetch(`${REGISTRY_URL}/rooms`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room })
+    });
+
+    console.log('Response status:', res.status);
+    const text = await res.text();
+    console.log('Response body:', text);
+
+    if (!res.ok) {
+      throw new Error(`Status ${res.status}: ${text}`);
     }
+
+    document.getElementById('roomName').value = '';
+    await listRooms();
+    document.getElementById('statusMsg').style.color = '#0f0';
+    document.getElementById('statusMsg').textContent =
+      `✅ Room "${room}" created`;
+  } catch (err) {
+    console.error('createRoom error:', err);
+    document.getElementById('statusMsg').style.color = '#f00';
+    document.getElementById('statusMsg').textContent =
+      `❌ ${err.message}`;
+  }
+}
+
 
     async function listRooms(){
       statusMsg.textContent='';
